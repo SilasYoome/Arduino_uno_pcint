@@ -51,6 +51,10 @@
 // The assembly code uses auto-incrementing addressing modes, so the struct
 // must remain in exactly this order.
 typedef struct {
+	volatile IO_REG_TYPE * pin1_register;
+	volatile IO_REG_TYPE * pin2_register;
+	IO_REG_TYPE            pin1_bitmask;
+	IO_REG_TYPE            pin2_bitmask;
 	uint8_t					  pin1;
 	uint8_t					  pin2;
 	uint8_t                state;
@@ -70,15 +74,32 @@ public:
 		pinMode(pin2, INPUT);
 		digitalWrite(pin2, HIGH);
 		#endif
-		interrupts_in_use = attach_pin_change_interrupt(pin1, &encoder);
-		interrupts_in_use += attach_pin_change_interrupt(pin2, &encoder);
+		encoder.pin1_register = PIN_TO_BASEREG(pin1);
+		encoder.pin1_bitmask = PIN_TO_BITMASK(pin1);
+		encoder.pin2_register = PIN_TO_BASEREG(pin2);
+		encoder.pin2_bitmask = PIN_TO_BITMASK(pin2);
+		encoder.pin1 = pin1;
+		encoder.pin2 = pin2;
+		encoder.position = 0;
+		delayMicroseconds(2000);
+		uint8_t s = 0;
+
+		if (DIRECT_PIN_READ(encoder.pin1_register, encoder.pin1_bitmask)) s |= 1;
+		if (DIRECT_PIN_READ(encoder.pin2_register, encoder.pin2_bitmask)) s |= 2;
+		encoder.state = s;
+
+		pin_change_interrupts_in_use = attach_pin_change_interrupt(pin1, &encoder);
+		pin_change_interrupts_in_use += attach_pin_change_interrupt(pin2, &encoder);
 
 		//update_finishup();  // to force linker to include the code (does not work)
 	}
 
 	inline int32_t read() {
-		update(&encoder);
-		return encoder.position;
+		if (pin_change_interrupts_in_use < 2) {
+			update(&encoder);
+		}
+		int32_t ret = encoder.position;
+		return ret;
 	}
 	inline void write(int32_t p) {
 		encoder.position = p;
@@ -86,7 +107,7 @@ public:
 
 private:
 	PCINT_Encoder_internal_state_t encoder;
-	uint8_t interrupts_in_use;
+	uint8_t pin_change_interrupts_in_use;
 public:
 	static PCINT_Encoder_internal_state_t * interruptArgs[ENCODER_ARGLIST_SIZE];
 
@@ -584,7 +605,10 @@ private:
 					attachPCINT(digitalPinToPCINT(pin),isr69,CHANGE);
 					break;
 			#endif
+				default:
+					return 0;
 		}
+		return 1;
 	}
 
 	#ifdef PCINT_INT0_PIN

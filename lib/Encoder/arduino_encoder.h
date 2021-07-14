@@ -186,7 +186,7 @@ public:
 	// but it is public to allow static interrupt routines.
 	// DO NOT call update() directly from sketches.
 	static void update(Encoder_internal_state_t *arg) {
-#if defined(__AVR__)
+/*#if defined(__AVR__)
 		// The compiler believes this is just 1 line of code, so
 		// it will inline this function into each interrupt
 		// handler.  That's a tiny bit faster, but grows the code.
@@ -270,7 +270,7 @@ public:
 			"st	-X, r22"		"\n\t"
 		"L%=end:"				"\n"
 		: : "x" (arg) : "r22", "r23", "r24", "r25", "r30", "r31");
-#else
+#else*/
 		uint8_t p1val = DIRECT_PIN_READ(arg->pin1_register, arg->pin1_bitmask);
 		uint8_t p2val = DIRECT_PIN_READ(arg->pin2_register, arg->pin2_bitmask);
 		uint8_t state = arg->state & 3;
@@ -291,10 +291,9 @@ public:
 				arg->position -= 2;
 				return;
 		}
-#endif
+//#endif
 	}
 private:
-/*
 #if defined(__AVR__)
 	// TODO: this must be a no inline function
 	// even noinline does not seem to solve difficult
@@ -351,7 +350,6 @@ private:
 		: : : "r22", "r23", "r24", "r25", "r30", "r31");
 	}
 #endif
-*/
 
 
 #ifdef ENCODER_USE_INTERRUPTS
